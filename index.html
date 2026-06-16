@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Couple Hub 💞</title>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:-apple-system,BlinkMacSystemFont;
+}
+
+body{
+background:#000;
+color:white;
+height:100vh;
+overflow:hidden;
+}
+
+/* HEADER */
+.top{
+padding:12px;
+text-align:center;
+background:rgba(20,20,20,0.6);
+backdrop-filter:blur(15px);
+font-weight:700;
+}
+
+/* SCREENS */
+.screen{display:none;height:100%;flex-direction:column;}
+.active{display:flex;}
+
+/* LOGIN */
+.center{padding:20px;display:flex;flex-direction:column;gap:10px;}
+
+input{
+padding:14px;
+border:none;
+border-radius:14px;
+background:rgba(255,255,255,0.08);
+color:white;
+}
+
+button{
+padding:14px;
+border:none;
+border-radius:14px;
+background:#0A84FF;
+color:white;
+font-weight:600;
+}
+
+/* LOBBY */
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+padding:15px;
+}
+
+.card{
+background:rgba(255,255,255,0.08);
+border-radius:18px;
+padding:18px;
+text-align:center;
+}
+
+/* CHAT */
+.msgs{
+flex:1;
+overflow:auto;
+padding:10px;
+display:flex;
+flex-direction:column;
+gap:8px;
+}
+
+.msg{
+max-width:75%;
+padding:10px;
+border-radius:18px;
+animation:pop .2s ease;
+}
+
+.mine{align-self:flex-end;background:#0A84FF;}
+.theirs{align-self:flex-start;background:rgba(255,255,255,0.08);}
+
+@keyframes pop{
+from{transform:translateY(10px);opacity:0;}
+to{transform:translateY(0);opacity:1;}
+}
+
+/* FLOAT HEARTS */
+.heart{
+position:absolute;
+bottom:0;
+font-size:20px;
+animation:float 2s linear forwards;
+opacity:0.8;
+}
+
+@keyframes float{
+to{transform:translateY(-100vh);opacity:0;}
+}
+
+/* MATCH SCREEN */
+#match{
+position:absolute;
+inset:0;
+display:none;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+background:radial-gradient(circle,#0A84FF,#000);
+}
+
+.big{font-size:24px;font-weight:700;}
+</style>
+</head>
+
+<body>
+
+<div class="top">💞 Couple Hub SNAP</div>
+
+<!-- LOGIN -->
+<div id="login" class="screen active">
+<div class="center">
+<input id="name" placeholder="Name">
+<input id="room" placeholder="Room code">
+<button onclick="create()">Create</button>
+<button onclick="join()">Join</button>
+</div>
+</div>
+
+<!-- MATCH -->
+<div id="match">
+<div class="big">💞 MATCHED</div>
+<div>Loading world...</div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="screen">
+<div class="grid">
+
+<div class="card" onclick="openGame('chat')">💬 Chat</div>
+<div class="card" onclick="openGame('tap')">❤️ Tap Battle</div>
+<div class="card" onclick="openGame('quiz')">🧠 Quiz</div>
+<div class="card" onclick="openGame('truth')">🎲 Truth</div>
+
+</div>
+
+<div style="padding:10px;text-align:center;">
+🐻 Pet Level: <span id="pet">1</span>
+</div>
+</div>
+
+<!-- CHAT -->
+<div id="chat" class="screen">
+<div class="msgs" id="msgs"></div>
+<div style="display:flex;gap:8px;padding:10px;">
+<input id="msg">
+<button onclick="send()">↑</button>
+<button onclick="react('❤️')">❤️</button>
+<button onclick="react('😂')">😂</button>
+</div>
+</div>
+
+<!-- TAP -->
+<div id="tap" class="screen">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+<h2>❤️ Tap Battle</h2>
+<p id="score">0</p>
+<button onclick="tap()">TAP</button>
+<button onclick="back()">Exit</button>
+</div>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="screen">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+<h2>🧠 Quiz</h2>
+<p id="q">Start</p>
+<button onclick="nextQ()">Next</button>
+<button onclick="back()">Exit</button>
+</div>
+</div>
+
+<!-- TRUTH -->
+<div id="truth" class="screen">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+<h2>🎲 Truth</h2>
+<p id="td">Ready</p>
+<button onclick="nextTD()">Next</button>
+<button onclick="back()">Exit</button>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+const firebaseConfig={
+apiKey:"AIzaSyDgJS40gn_X8IACTCpgA4DT_3kC9T6oNxM",
+authDomain:"yoooo-85eb6.firebaseapp.com",
+databaseURL:"https://yoooo-85eb6-default-rtdb.firebaseio.com",
+projectId:"yoooo-85eb6",
+storageBucket:"yoooo-85eb6.appspot.com",
+appId:"1:837218315446:web:443d6dc3417e78706b4a17"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getDatabase(app);
+
+let room="", user="";
+let msgRef;
+
+/* ROOM */
+window.create=()=>{
+user=name.value||"P1";
+room=Math.random().toString(36).slice(2,7);
+start();
+};
+
+window.join=()=>{
+user=name.value||"P2";
+room=room.value;
+start();
+};
+
+function start(){
+
+login.classList.remove("active");
+
+match.style.display="flex";
+
+setTimeout(()=>{
+match.style.display="none";
+lobby.classList.add("active");
+},1500);
+
+msgRef=ref(db,"rooms/"+room+"/chat");
+
+onChildAdded(msgRef,(s)=>{
+let d=s.val();
+addMsg(d.name,d.text,d.name===user);
+});
+}
+
+/* NAV */
+window.openGame=(g)=>{
+lobby.classList.remove("active");
+document.getElementById(g).classList.add("active");
+};
+
+window.back=()=>{
+document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+lobby.classList.add("active");
+};
+
+/* CHAT */
+window.send=()=>{
+push(msgRef,{name:user,text:msg.value});
+msg.value="";
+spawnHeart();
+};
+
+window.react=(r)=>{
+push(msgRef,{name:user,text:r});
+spawnHeart();
+};
+
+/* HEART ANIMATION */
+function spawnHeart(){
+let h=document.createElement("div");
+h.className="heart";
+h.innerText="💜";
+document.body.appendChild(h);
+setTimeout(()=>h.remove(),2000);
+}
+
+/* TAP */
+let score=0;
+window.tap=()=>{
+score++;
+scoreEl.innerText=score;
+pet.innerText=parseInt(pet.innerText)+1;
+};
+let scoreEl=document.getElementById("score");
+
+/* QUIZ */
+window.nextQ=()=>{
+q.innerText="Who loves more?";
+};
+
+/* TRUTH */
+let list=[
+"Truth: What do you feel right now?",
+"Dare: Send 💜 spam",
+"Truth: First impression?",
+"Dare: Say something cute"
+];
+
+window.nextTD=()=>{
+td.innerText=list[Math.floor(Math.random()*list.length)];
+};
+</script>
+
+</body>
+</html>
