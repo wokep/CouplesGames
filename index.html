@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A84FF">
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+
+<title>Couple Hub 💜</title>
+
+<style>
+body{
+margin:0;
+font-family:-apple-system;
+background:#000;
+color:white;
+height:100dvh;
+overflow:hidden;
+}
+
+.screen{
+display:none;
+height:100%;
+padding:12px;
+}
+
+.active{
+display:flex;
+flex-direction:column;
+}
+
+button,input{
+padding:14px;
+border-radius:14px;
+border:none;
+margin-top:8px;
+font-size:16px;
+}
+
+input{background:#151515;color:white}
+button{background:#0A84FF;color:white}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+}
+
+.card{
+background:#151515;
+padding:16px;
+border-radius:16px;
+text-align:center;
+}
+
+.bear{
+font-size:90px;
+animation:float 1s infinite;
+}
+
+@keyframes float{
+0%{transform:rotate(-10deg)}
+50%{transform:rotate(10deg) translateY(-10px)}
+100%{transform:rotate(-10deg)}
+}
+
+.msg{
+padding:10px;
+border-radius:16px;
+max-width:75%;
+margin-top:6px;
+}
+
+.me{background:#0A84FF;align-self:flex-end}
+.them{background:#222}
+
+#loader{
+position:absolute;
+inset:0;
+background:#000;
+display:none;
+justify-content:center;
+align-items:center;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="app"></div>
+<div id="loader">💞 Loading...</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getDatabase,ref,set,push,onValue,get } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+const firebaseConfig={
+apiKey:"AIzaSyDgJS40gn_X8IACTCpgA4DT_3kC9T6oNxM",
+authDomain:"yoooo-85eb6.firebaseapp.com",
+databaseURL:"https://yoooo-85eb6-default-rtdb.firebaseio.com",
+projectId:"yoooo-85eb6",
+storageBucket:"yoooo-85eb6.appspot.com",
+appId:"1:837218315446:web:443d6dc3417e78706b4a17"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getDatabase(app);
+
+let room="";
+let user="";
+
+/* UI */
+function load(html){
+document.getElementById("app").innerHTML=html;
+}
+
+/* HOME */
+function home(){
+load(`
+<div class="screen active">
+
+<h1>💜 Couple Hub</h1>
+
+<input id="name" placeholder="name">
+
+<button onclick="create()">Create Room</button>
+
+<input id="joinCode" placeholder="code">
+
+<button onclick="join()">Join</button>
+
+</div>
+`);
+}
+home();
+
+/* CREATE */
+window.create=async()=>{
+user=name.value;
+room=Math.random().toString(36).slice(2,7).toUpperCase();
+
+await set(ref(db,"rooms/"+room),{
+joined:false,
+chat:{},
+draw:{},
+ttt:Array(9).fill("")
+});
+
+wait();
+watch();
+};
+
+/* JOIN */
+window.join=async()=>{
+user=name.value;
+room=joinCode.value.toUpperCase();
+
+await set(ref(db,"rooms/"+room+"/joined"),true);
+
+start();
+};
+
+/* WAIT */
+function wait(){
+load(`
+<div class="screen active">
+<div class="bear">🧸</div>
+<h2>Waiting</h2>
+<h1>${room}</h1>
+</div>
+`);
+}
+
+/* WATCH */
+function watch(){
+onValue(ref(db,"rooms/"+room+"/joined"),snap=>{
+if(snap.val()) start();
+});
+}
+
+/* HUB */
+function start(){
+load(`
+<div class="screen active">
+
+<h2>💞 Couple Hub</h2>
+
+<div class="grid">
+
+<div class="card" onclick="chat()">Chat</div>
+<div class="card" onclick="draw()">Draw</div>
+<div class="card" onclick="ttt()">TicTacToe</div>
+
+</div>
+
+</div>
+`);
+}
+
+/* CHAT */
+window.chat=()=>{
+load(`
+<div class="screen active">
+
+<div id="msgs"></div>
+
+<input id="m">
+<button onclick="send()">send</button>
+
+</div>
+`);
+
+onValue(ref(db,"rooms/"+room+"/chat"),snap=>{
+let d=snap.val()||{};
+msgs.innerHTML=Object.values(d).map(x=>
+`<div class="${x.u==user?'me':'them'}">${x.t}</div>`
+).join("");
+});
+};
+
+window.send=()=>{
+push(ref(db,"rooms/"+room+"/chat"),{
+u:user,
+t:m.value
+});
+m.value="";
+};
+
+/* DRAW */
+window.draw=()=>{
+load(`
+<div class="screen active">
+<h3>Draw Together</h3>
+<canvas id="c" width="300" height="400"></canvas>
+</div>
+`);
+
+const c=document.getElementById("c");
+const ctx=c.getContext("2d");
+
+c.onpointermove=(e)=>{
+if(e.pressure>0){
+ctx.fillRect(e.offsetX,e.offsetY,3,3);
+push(ref(db,"rooms/"+room+"/draw"),{
+x:e.offsetX,
+y:e.offsetY
+});
+}
+};
+
+onValue(ref(db,"rooms/"+room+"/draw"),snap=>{
+let d=snap.val()||{};
+});
+};
+
+/* TIC TAC TOE */
+window.ttt=()=>{
+load(`<div class="screen active"><h2>Tic Tac Toe</h2></div>`);
+};
+
+</script>
+
+</body>
+</html>
